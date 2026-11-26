@@ -7,6 +7,7 @@ struct ScheduleWidgetBundle: WidgetBundle {
         // WidgetBundleBuilder 不支持按版本二选一；配置组件为 iOS 17+ 能力，
         // iOS 15/16 不再单独提供旧版组件。
         if #available(iOS 17.0, *) {
+            ScheduleLiveActivityWidget()
             UpNextConfiguredWidget()
             TodayConfiguredWidget()
             TodoConfiguredWidget()

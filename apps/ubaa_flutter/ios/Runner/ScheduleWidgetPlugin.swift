@@ -31,7 +31,7 @@ final class WidgetLaunchInbox {
 }
 
 /// 与 Android `WidgetChannel.kt` 同合同：`begin` 更换发布代次，
-/// `publish` 提交课表投影并立即刷新全部桌面组件。
+/// `publish` 提交课表投影并立即刷新全部桌面组件和通知中心实时活动。
 final class ScheduleWidgetPlugin: NSObject, FlutterPlugin {
   private static let launchInbox = WidgetLaunchInbox()
   private let store: ScheduleWidgetStore
@@ -84,6 +84,9 @@ final class ScheduleWidgetPlugin: NSObject, FlutterPlugin {
         }
         DispatchQueue.main.async {
           self.reload()
+          if #available(iOS 17.0, *) {
+            ScheduleLiveActivitySync.resync()
+          }
           result(reply)
         }
       } catch {

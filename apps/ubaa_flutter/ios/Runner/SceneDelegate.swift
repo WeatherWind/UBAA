@@ -18,4 +18,11 @@ class SceneDelegate: FlutterSceneDelegate {
     }
     super.scene(scene, openURLContexts: URLContexts)
   }
+
+  override func sceneDidBecomeActive(_ scene: UIScene) {
+    super.sceneDidBecomeActive(scene)
+    if #available(iOS 17.0, *) {
+      ScheduleLiveActivitySync.resync()
+    }
+  }
 }
