@@ -120,7 +120,7 @@
       },
       "secondary": {
         "kind": "next",
-        "text": "下一节 10:10 教一 B305",
+        "text": "下一节 10:10 大学英语 教一 B305",
         "private": false,
         "link": "ubaa://widget/open?owner=%E8%99%9A%E6%9E%84+%E8%B4%A6%E5%8F%B7&target=schedule&date=2026-11-16"
       },
@@ -179,7 +179,7 @@
       },
       "secondary": {
         "kind": "next",
-        "text": "下一节 14:00 研讨室 305",
+        "text": "下一节 14:00 研讨室预约 研讨室 305",
         "private": false,
         "link": "ubaa://widget/open?owner=%E8%99%9A%E6%9E%84+%E8%B4%A6%E5%8F%B7&target=feature&feature=cgyy&view=cgyyOrders"
       },
@@ -262,7 +262,7 @@
       },
       "secondary": {
         "kind": "next",
-        "text": "下一节 19:00 学术交流厅",
+        "text": "下一节 19:00 博雅讲座 学术交流厅",
         "private": false,
         "link": "ubaa://widget/open?owner=%E8%99%9A%E6%9E%84+%E8%B4%A6%E5%8F%B7&target=feature&feature=bykc&view=bykcDetail&courseId=7"
       },

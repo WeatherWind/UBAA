@@ -79,7 +79,7 @@ _Row _upNext(
       second = {
         'kind': 'next',
         'text': _display(
-          '下一节 ${_hm(next.start!)}${next.place == null ? '' : ' ${next.place}'}',
+          '下一节 ${_hm(next.start!)} ${next.title}${next.place == null ? '' : ' ${next.place}'}',
         ),
         'private': next.private,
         'link': next.link,

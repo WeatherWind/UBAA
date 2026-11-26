@@ -14,7 +14,7 @@ void main() {
     final up = segment(data, 'upNext', wall(0, 9));
     expect(up['primary']['tag'], '考试');
     expect(up['secondary']['kind'], 'next');
-    expect(up['secondary']['text'], '下一节 11:00');
+    expect(up['secondary']['text'], '下一节 11:00 自建');
     expect(up['secondary']['private'], true);
     final far = segment(data, 'upNext', wall(0, 12));
     expect(far['primary']['timeText'], '11-24 8:00');
@@ -55,7 +55,7 @@ void main() {
         null,
         '还剩',
         wall(0, 9, 35),
-        '下一节 10:10 教一 B305',
+        '下一节 10:10 大学英语 教一 B305',
       ),
       (9, 40, '大学英语', '10:10', null, '还有', wall(0, 10, 10), null),
       (12, 30, '研讨室预约', '14:00', '预约', null, null, null),
