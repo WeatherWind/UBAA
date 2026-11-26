@@ -87,6 +87,6 @@ enum ScheduleLiveActivitySync {
     }
 
     private static func signature(_ face: ScheduleLiveFace, until: Date?) -> String {
-        "\(face.desktopKey)\u{1}\(face.countdownLabel ?? "")\u{1}\(face.countdownEnd?.timeIntervalSince1970 ?? 0)\u{1}\(until?.timeIntervalSince1970 ?? 0)"
+        "\(face.desktopKey)\u{1}\(face.classStart?.timeIntervalSince1970 ?? 0)\u{1}\(face.sectionEnd?.timeIntervalSince1970 ?? 0)\u{1}\(face.periodEnd?.timeIntervalSince1970 ?? 0)\u{1}\(face.countdownLabel ?? "")\u{1}\(face.countdownEnd?.timeIntervalSince1970 ?? 0)\u{1}\(until?.timeIntervalSince1970 ?? 0)"
     }
 }

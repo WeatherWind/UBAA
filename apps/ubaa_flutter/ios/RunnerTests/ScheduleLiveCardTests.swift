@@ -7,24 +7,54 @@ final class ScheduleLiveCardTests: XCTestCase {
         let steps = ScheduleLivePlan.steps(now: now, snapshot: snapshot)
         let current = try XCTUnwrap(steps.first)
         XCTAssertNil(current.start)
-        XCTAssertEqual(current.face.timeText, "至 9:35")
+        XCTAssertEqual(current.face.timeText, "至 09:35")
         XCTAssertTrue(current.face.ongoing)
         XCTAssertEqual(current.face.alertTitle, "进行中")
         XCTAssertEqual(current.face.title, "高等数学")
         XCTAssertEqual(current.face.place, "主楼 A201")
-        XCTAssertEqual(current.face.secondaryText, "下一节 10:10 教一 B305")
+        XCTAssertEqual(current.face.secondaryText, "下一节 10:10 大学英语 教一 B305")
         XCTAssertFalse(current.face.secondaryExam)
         XCTAssertEqual(current.face.countdownLabel, "还剩")
-        XCTAssertEqual(current.until, Date(timeIntervalSince1970: 1_794_792_900))
+        XCTAssertNil(current.face.classStart)
+        XCTAssertEqual(current.face.sectionClock, "08:45")
+        XCTAssertEqual(current.face.periodClock, "09:35")
+        XCTAssertEqual(current.face.sectionEnd, Date(timeIntervalSince1970: 1_794_789_900))
+        XCTAssertEqual(current.face.periodEnd, Date(timeIntervalSince1970: 1_794_792_900))
+        XCTAssertEqual(current.until, Date(timeIntervalSince1970: 1_794_789_900))
 
-        let next = try XCTUnwrap(steps.dropFirst().first)
-        XCTAssertEqual(next.start, Date(timeIntervalSince1970: 1_794_792_900))
-        XCTAssertEqual(next.face.title, "大学英语")
-        XCTAssertEqual(next.face.timeText, "10:10")
-        XCTAssertFalse(next.face.ongoing)
-        XCTAssertEqual(next.face.alertTitle, "接下来")
-        XCTAssertEqual(next.face.alertBody, "10:10 教一 B305 大学英语")
-        XCTAssertEqual(next.until, Date(timeIntervalSince1970: 1_794_795_000))
+        let nextSection = try XCTUnwrap(steps.dropFirst().first)
+        XCTAssertEqual(nextSection.start, Date(timeIntervalSince1970: 1_794_789_900))
+        XCTAssertEqual(nextSection.face.title, "高等数学")
+        XCTAssertEqual(nextSection.face.classClock, "08:55")
+        XCTAssertEqual(nextSection.face.sectionClock, "09:35")
+        XCTAssertEqual(nextSection.face.periodClock, "09:35")
+        XCTAssertEqual(nextSection.until, Date(timeIntervalSince1970: 1_794_790_500))
+    }
+
+    func testBreakBetweenSectionsCountsTheUpcomingSection() throws {
+        let snapshot = try ScheduleWidgetParser.parseSnapshot(WidgetV2Tests.fixture())
+        let now = Date(timeIntervalSince1970: 1_794_787_200 + 50 * 60)
+        let steps = ScheduleLivePlan.steps(now: now, snapshot: snapshot)
+        let current = try XCTUnwrap(steps.first)
+        XCTAssertEqual(current.face.classClock, "08:55")
+        XCTAssertEqual(current.face.sectionClock, "09:35")
+        XCTAssertEqual(current.face.periodClock, "09:35")
+        XCTAssertEqual(current.until, Date(timeIntervalSince1970: 1_794_790_500))
+        let following = try XCTUnwrap(steps.dropFirst().first)
+        XCTAssertNil(following.face.classStart)
+        XCTAssertEqual(following.face.sectionClock, "09:35")
+        XCTAssertEqual(following.start, Date(timeIntervalSince1970: 1_794_790_500))
+    }
+
+    func testClockPaddingAndRemainingWords() {
+        XCTAssertEqual(ScheduleLiveClock.pad("9:35"), "09:35")
+        XCTAssertEqual(ScheduleLiveClock.pad("明天 8:00"), "明天 08:00")
+        XCTAssertEqual(ScheduleLiveClock.pad("8:00–9:35"), "08:00–09:35")
+        XCTAssertEqual(ScheduleLiveClock.pad("10:10"), "10:10")
+        XCTAssertEqual(ScheduleLiveClock.format(remaining: 42 * 60 + 18), "42分18秒")
+        XCTAssertEqual(ScheduleLiveClock.format(remaining: 3_599), "59分59秒")
+        XCTAssertEqual(ScheduleLiveClock.format(remaining: 3_600), "01时00分")
+        XCTAssertEqual(ScheduleLiveClock.format(remaining: 3_600 + 5 * 60 + 9), "01时05分")
     }
 
     func testCountdownAppearanceDoesNotSplitTheDesktopFace() throws {
@@ -40,9 +70,9 @@ final class ScheduleLiveCardTests: XCTestCase {
         XCTAssertEqual(steps.count, 2)
         XCTAssertNil(steps[0].start)
         XCTAssertNil(steps[0].face.countdownLabel)
-        XCTAssertEqual(steps[0].face.timeText, "8:00")
+        XCTAssertEqual(steps[0].face.timeText, "08:00")
         XCTAssertEqual(steps[0].until, Date(timeIntervalSince1970: TimeInterval(start + 200)))
-        XCTAssertEqual(steps[1].face.timeText, "至 9:35")
+        XCTAssertEqual(steps[1].face.timeText, "至 09:35")
         XCTAssertEqual(steps[1].face.countdownLabel, "还剩")
         XCTAssertEqual(steps[1].start, Date(timeIntervalSince1970: TimeInterval(start + 200)))
     }
@@ -59,7 +89,7 @@ final class ScheduleLiveCardTests: XCTestCase {
         XCTAssertEqual(steps.count, 1)
         XCTAssertNil(steps[0].start)
         XCTAssertEqual(steps[0].face.countdownLabel, "还有")
-        XCTAssertEqual(steps[0].face.timeText, "8:00")
+        XCTAssertEqual(steps[0].face.timeText, "08:00")
     }
 
     func testQuietGapSchedulesTheNextItemInsteadOfShowingItNow() throws {
@@ -85,7 +115,7 @@ final class ScheduleLiveCardTests: XCTestCase {
         let now = Date(timeIntervalSince1970: TimeInterval(start))
         let steps = ScheduleLivePlan.steps(now: now, snapshot: snapshot)
         XCTAssertNil(steps[0].start)
-        XCTAssertEqual(steps[0].face.timeText, "明天 8:00")
+        XCTAssertEqual(steps[0].face.timeText, "明天 08:00")
         XCTAssertEqual(steps[0].until, Date(timeIntervalSince1970: TimeInterval(start + 1_200)))
         XCTAssertEqual(steps[1].start, Date(timeIntervalSince1970: TimeInterval(start + 1_200)))
     }

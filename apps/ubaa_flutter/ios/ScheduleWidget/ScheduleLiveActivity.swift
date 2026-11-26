@@ -16,18 +16,22 @@ struct ScheduleLiveActivityWidget: Widget {
                     ScheduleLiveFaceView(face: context.state, prominent: false)
                 }
             } compactLeading: {
-                Text(context.state.timeText)
+                Text(context.state.classClock ?? context.state.sectionClock ?? context.state.timeText)
                     .font(.system(size: 12, weight: .semibold))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             } compactTrailing: {
-                Text(context.state.place ?? context.state.title)
+                Text(context.state.ongoing
+                     ? (context.state.periodClock ?? context.state.place ?? context.state.title)
+                     : (context.state.place ?? context.state.title))
                     .font(.system(size: 12, weight: .medium))
+                    .monospacedDigit()
                     .lineLimit(1)
-                    .privacySensitive(context.state.place == nil && context.state.isPrivate)
+                    .minimumScaleFactor(0.6)
+                    .privacySensitive(context.state.periodClock == nil && context.state.place == nil && context.state.isPrivate)
             } minimal: {
-                Text(context.state.ongoing ? "进行中" : context.state.timeText)
+                Text(context.state.classClock ?? context.state.sectionClock ?? (context.state.ongoing ? "进行中" : context.state.timeText))
                     .font(.system(size: 11, weight: .semibold))
                     .monospacedDigit()
                     .lineLimit(1)
@@ -67,7 +71,58 @@ private struct ScheduleLiveFaceView: View {
 
     var body: some View {
         let palette = SchedulePalette.resolve(theme: .ocean, scheme: scheme, accented: false)
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(spacing: 8) {
+            header(palette)
+            Text(face.title)
+                .font(.system(size: prominent ? 22 : 18, weight: .semibold))
+                .foregroundStyle(palette.ink)
+                .multilineTextAlignment(.center)
+                .lineLimit(prominent ? 2 : 1)
+                .privacySensitive(face.isPrivate)
+                .frame(maxWidth: .infinity)
+            if let place = face.place {
+                Text(place)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(palette.secondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity)
+            }
+            if face.ongoing {
+                HStack(alignment: .top, spacing: 0) {
+                    if face.classStart != nil {
+                        mark("本节课开始于", clock: face.classClock, end: face.classStart, prefix: "还有", palette: palette)
+                        Rectangle().fill(palette.hairline).frame(width: 1).padding(.vertical, 2)
+                    }
+                    mark("本节课结束于", clock: face.sectionClock, end: face.sectionEnd, prefix: "还剩", palette: palette)
+                    Rectangle().fill(palette.hairline).frame(width: 1).padding(.vertical, 2)
+                    mark("本堂课结束于", clock: face.periodClock, end: face.periodEnd, prefix: "还剩", palette: palette)
+                }
+            } else {
+                mark(
+                    "本节课开始于",
+                    clock: face.classClock ?? face.timeText,
+                    end: face.classStart ?? face.countdownEnd,
+                    prefix: "还有",
+                    palette: palette
+                )
+            }
+            if let secondary = face.secondaryText, !secondary.isEmpty {
+                Text(secondary)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(face.secondaryExam ? palette.accent : palette.tertiary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func header(_ palette: SchedulePalette) -> some View {
+        if face.ongoing || face.tag != nil || face.extraCount > 0 {
+        ZStack {
             HStack(spacing: 4) {
                 if face.ongoing {
                     Text("进行中")
@@ -86,55 +141,59 @@ private struct ScheduleLiveFaceView: View {
                         .padding(.vertical, 2)
                         .background(Capsule().fill(palette.accent.opacity(0.14)))
                 }
-                Spacer(minLength: 0)
-                if face.extraCount > 0 {
-                    Text("+\(face.extraCount)")
-                        .font(.system(size: 11))
-                        .foregroundStyle(palette.tertiary)
-                }
             }
-            Text(face.timeText)
-                .font(.system(size: prominent ? 22 : 18, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(face.ongoing ? palette.accent : palette.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            if let timer = countdown {
-                timer
-                    .font(.system(size: 12, weight: .semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(palette.accent)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-            }
-            HStack(alignment: .top, spacing: 6) {
-                Capsule().fill(palette.accent).frame(width: 3)
-                VStack(alignment: .leading, spacing: 1) {
-                    if let place = face.place {
-                        Text(place)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(palette.ink)
-                            .lineLimit(1)
-                    }
-                    Text(face.title)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(palette.secondary)
-                        .lineLimit(prominent ? 2 : 1)
-                        .privacySensitive(face.isPrivate)
-                }
-            }
-            if let secondary = face.secondaryText, !secondary.isEmpty {
-                Text(secondary)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(face.secondaryExam ? palette.accent : palette.tertiary)
-                    .lineLimit(1)
+            .frame(maxWidth: .infinity)
+            if face.extraCount > 0 {
+                Text("+\(face.extraCount)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(palette.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
-    private var countdown: Text? {
-        guard let label = face.countdownLabel, let end = face.countdownEnd, end > Date() else { return nil }
-        return Text("\(label) \(Text(timerInterval: Date()...end, countsDown: true))")
+    private func mark(
+        _ name: String, clock: String?, end: Date?, prefix: String, palette: SchedulePalette
+    ) -> some View {
+        VStack(spacing: 2) {
+            Text(name)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(palette.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+            Text(clock ?? "—")
+                .font(.system(size: prominent ? 22 : 16, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(palette.accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            if let end {
+                RemainingText(prefix: prefix, end: end, color: palette.accent, size: 11)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+@available(iOS 16.2, *)
+private struct RemainingText: View {
+    var prefix: String
+    var end: Date
+    var color: Color
+    var size: CGFloat
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            Text(end > context.date
+                 ? "\(prefix) \(ScheduleLiveClock.remaining(until: end, now: context.date))"
+                 : "\(prefix) 00分00秒")
+                .font(.system(size: size, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
     }
 }
