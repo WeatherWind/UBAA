@@ -75,12 +75,7 @@ private struct ScheduleLiveFaceView: View {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
-                        Text(clockHero)
-                            .font(.system(size: prominent ? 24 : 20, weight: .semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(palette.ink)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
+                        smallHero(palette)
                         Spacer(minLength: 0)
                         if let tag = face.tag, !tag.isEmpty {
                             Text(tag)
@@ -99,28 +94,21 @@ private struct ScheduleLiveFaceView: View {
                                 .fixedSize()
                         }
                     }
-                    if !clockSub.isEmpty {
-                        Text(clockSub)
-                            .font(.system(size: prominent ? 12 : 11, weight: .medium))
-                            .foregroundStyle(palette.secondary)
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-                    }
+                    smallSubline(palette)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(face.title)
-                            .font(.system(size: prominent ? 15 : 13, weight: .semibold))
-                            .foregroundStyle(palette.ink)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .privacySensitive(face.isPrivate)
                         if let place = face.place, !place.isEmpty {
                             Text(place)
-                                .font(.system(size: prominent ? 13 : 12, weight: .medium))
-                                .foregroundStyle(palette.secondary)
-                                .lineLimit(clockSub.isEmpty ? 2 : 1)
+                                .font(.system(size: prominent ? 15 : 13, weight: .semibold))
+                                .foregroundStyle(palette.ink)
+                                .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                         }
+                        Text(face.title)
+                            .font(.system(size: prominent ? 13 : 12, weight: .medium))
+                            .foregroundStyle(palette.secondary)
+                            .lineLimit(footerText == nil ? 2 : 1)
+                            .minimumScaleFactor(0.8)
+                            .privacySensitive(face.isPrivate)
                     }
                     .padding(.leading, prominent ? 9 : 8)
                     .overlay(alignment: .leading) {
@@ -161,15 +149,45 @@ private struct ScheduleLiveFaceView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// 小尺寸「接下来」的第一行是时刻，不是课名。
-    private var clockHero: String {
-        face.scheduleText ?? face.timeText
+    /// 与最小号「接下来」同一套时刻：上课中大字是倒计时，未上课大字是时刻。
+    @ViewBuilder
+    private func smallHero(_ palette: SchedulePalette) -> some View {
+        let size: CGFloat = prominent ? 24 : 20
+        if face.ongoing, let countdown, countdown.end > .now {
+            (Text("\(countdown.prefix) ") + Text(timerInterval: .now...countdown.end, countsDown: true))
+                .font(.system(size: size, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(palette.accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        } else {
+            Text(face.timeText)
+                .font(.system(size: size, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(palette.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
     }
 
-    /// 上课中补本节下课，对应小卡片时刻下面的那一行。
-    private var clockSub: String {
-        guard face.ongoing, let section = face.sectionClock, !section.isEmpty else { return "" }
-        return "本节至 \(section)"
+    @ViewBuilder
+    private func smallSubline(_ palette: SchedulePalette) -> some View {
+        let size: CGFloat = prominent ? 12 : 11
+        if face.ongoing, countdown != nil {
+            Text(face.timeText)
+                .font(.system(size: size, weight: .medium))
+                .foregroundStyle(palette.secondary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        } else if !face.ongoing, let countdown, countdown.end > .now {
+            (Text("\(countdown.prefix) ") + Text(timerInterval: .now...countdown.end, countsDown: true))
+                .font(.system(size: size, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(palette.accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
     }
 
     private var countdown: (prefix: String, end: Date)? {
