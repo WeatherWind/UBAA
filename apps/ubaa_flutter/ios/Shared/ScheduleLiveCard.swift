@@ -5,10 +5,13 @@ import Foundation
 /// 时刻写成两位小时。未上课只给出本节开始；上课后同时给出本节结束和本堂结束。
 struct ScheduleLiveFace: Codable, Hashable {
     var timeText: String
+    var scheduleText: String?
+    var dateText: String?
     var ongoing: Bool
     var tag: String?
     var title: String
     var place: String?
+    var teacher: String?
     var extraCount: Int
     var secondaryText: String?
     var secondaryExam: Bool
@@ -29,7 +32,7 @@ struct ScheduleLiveFace: Codable, Hashable {
     /// 课表面貌。单节切换不放进这里，避免把整段学时拆成多张桌面卡。
     var desktopKey: String {
         [
-            timeText, ongoing ? "1" : "0", tag ?? "", title, place ?? "",
+            timeText, scheduleText ?? "", dateText ?? "", ongoing ? "1" : "0", tag ?? "", title, place ?? "", teacher ?? "",
             String(extraCount), secondaryText ?? "", secondaryExam ? "1" : "0",
         ].joined(separator: "\u{1}")
     }
@@ -89,6 +92,12 @@ enum ScheduleLiveClock {
         let parts = LocalDate.calendar.dateComponents([.hour, .minute], from: date)
         return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
     }
+
+    static func dayLabel(from date: Date) -> String {
+        let day = LocalDate.today(now: date)
+        let weekdays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+        return "\(weekdays[day.isoWeekday - 1]) \(day.monthDay)"
+    }
 }
 
 enum ScheduleLivePlan {
@@ -144,22 +153,27 @@ enum ScheduleLivePlan {
         guard segment.state == .item, let primary = segment.primary else { return nil }
         let end = primary.endText?.trimmingCharacters(in: .whitespacesAndNewlines)
         let periodClock = end.map { ScheduleLiveClock.pad($0) }
-        let slots = sectionSlots(primary, snapshot: snapshot)
+        let courseMatch = matchingCourse(primary, snapshot: snapshot)
+        let slots = sectionSlots(courseMatch)
         let sectionEnd = slots.map(\.end).first { $0 > now }
         let classStart = slots.first { $0.end > now }.flatMap { $0.start > now ? $0.start : nil }
             ?? primary.startAt.flatMap { $0 > now ? $0 : nil }
+        let scheduleText = ScheduleLiveClock.pad(primary.timeText)
         let time: String
         if primary.ongoing, let periodClock, !periodClock.isEmpty {
             time = "至 \(periodClock)"
         } else {
-            time = ScheduleLiveClock.pad(primary.timeText)
+            time = scheduleText
         }
         return ScheduleLiveFace(
             timeText: time,
+            scheduleText: scheduleText,
+            dateText: primary.startAt.map(ScheduleLiveClock.dayLabel(from:)) ?? blank(primary.dayText),
             ongoing: primary.ongoing,
             tag: blank(primary.tag),
             title: primary.title,
             place: blank(primary.place),
+            teacher: courseMatch.flatMap { ScheduleDisplay.teacher(from: $0.course.weeksAndTeachers) },
             extraCount: max(0, primary.extraCount),
             secondaryText: segment.secondary.map { ScheduleLiveClock.pad($0.text) },
             secondaryExam: segment.secondary?.kind == .exam,
@@ -179,7 +193,7 @@ enum ScheduleLivePlan {
     /// 上课和每节下课的时刻。活动在这些点换内容。
     private static func sectionBoundaries(_ segment: WidgetUpNextSegment, snapshot: WidgetSnapshot?) -> [Date] {
         guard let primary = segment.primary else { return [] }
-        return sectionSlots(primary, snapshot: snapshot).flatMap { [$0.start, $0.end] }
+        return sectionSlots(matchingCourse(primary, snapshot: snapshot)).flatMap { [$0.start, $0.end] }
     }
 
     private struct SectionSlot {
@@ -187,42 +201,56 @@ enum ScheduleLivePlan {
         var end: Date
     }
 
-    /// 这一堂课里每一节的起止。对不上节次表时不另造。
-    private static func sectionSlots(
+    private struct CourseMatch {
+        var course: WidgetCourse
+        var week: WidgetWeek
+        var startAt: Date
+    }
+
+    private static func matchingCourse(
         _ primary: WidgetUpNextSegment.Primary, snapshot: WidgetSnapshot?
-    ) -> [SectionSlot] {
-        guard let startAt = primary.startAt, let endAt = primary.endAt, let snapshot else { return [] }
+    ) -> CourseMatch? {
+        guard let startAt = primary.startAt, let endAt = primary.endAt, let snapshot else { return nil }
         let begin = minutes(on: startAt)
         let finish = minutes(on: endAt)
         let day = LocalDate.today(now: startAt)
         for semester in snapshot.semesters {
             for week in semester.weeks where week.startDate <= day && day <= week.endDate {
-                for course in week.arrangedList where course.courseName == primary.title
-                    && course.dayOfWeek == Optional(day.isoWeekday)
-                    && minutes(course.beginTime) == Optional(begin)
-                    && minutes(course.endTime) == Optional(finish) {
-                    guard let first = course.beginSection, let last = course.endSection, first <= last else {
-                        return []
-                    }
-                    let dayStart = LocalDate.calendar.startOfDay(for: startAt)
-                    return week.times
-                        .filter { (first...last).contains($0.section) }
-                        .compactMap { slot -> (Int, Int)? in
-                            guard let start = minutes(slot.start), let end = minutes(slot.end), start < end
-                            else { return nil }
-                            return (start, end)
-                        }
-                        .sorted { $0.0 < $1.0 }
-                        .compactMap { start, end in
-                            guard let startDate = LocalDate.calendar.date(byAdding: .minute, value: start, to: dayStart),
-                                  let endDate = LocalDate.calendar.date(byAdding: .minute, value: end, to: dayStart)
-                            else { return nil }
-                            return SectionSlot(start: startDate, end: endDate)
-                        }
+                if let course = week.arrangedList.first(where: { course in
+                    course.courseName == primary.title
+                        && course.dayOfWeek == Optional(day.isoWeekday)
+                        && minutes(course.beginTime) == Optional(begin)
+                        && minutes(course.endTime) == Optional(finish)
+                }) {
+                    return CourseMatch(course: course, week: week, startAt: startAt)
                 }
             }
         }
-        return []
+        return nil
+    }
+
+    /// 这一堂课里每一节的起止。对不上节次表时不另造。
+    private static func sectionSlots(_ match: CourseMatch?) -> [SectionSlot] {
+        guard let match else { return [] }
+        let course = match.course
+        guard let first = course.beginSection, let last = course.endSection, first <= last else {
+            return []
+        }
+        let dayStart = LocalDate.calendar.startOfDay(for: match.startAt)
+        return match.week.times
+            .filter { (first...last).contains($0.section) }
+            .compactMap { slot -> (Int, Int)? in
+                guard let start = minutes(slot.start), let end = minutes(slot.end), start < end
+                else { return nil }
+                return (start, end)
+            }
+            .sorted { $0.0 < $1.0 }
+            .compactMap { start, end in
+                guard let startDate = LocalDate.calendar.date(byAdding: .minute, value: start, to: dayStart),
+                      let endDate = LocalDate.calendar.date(byAdding: .minute, value: end, to: dayStart)
+                else { return nil }
+                return SectionSlot(start: startDate, end: endDate)
+            }
     }
 
     private static func minutes(_ value: String?) -> Int? {

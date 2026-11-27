@@ -234,7 +234,7 @@ Map widgetFixture() => snapshot(
               'startTime': '08:00',
               'endTime': '09:35',
               'place': '主楼 A201',
-              'weeksAndTeachers': null,
+              'weeksAndTeachers': '1-16周/合成教师[主讲]',
             },
           ],
           'times': [

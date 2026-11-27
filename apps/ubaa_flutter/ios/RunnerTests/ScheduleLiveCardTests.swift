@@ -8,10 +8,13 @@ final class ScheduleLiveCardTests: XCTestCase {
         let current = try XCTUnwrap(steps.first)
         XCTAssertNil(current.start)
         XCTAssertEqual(current.face.timeText, "至 09:35")
+        XCTAssertEqual(current.face.scheduleText, "08:00–09:35")
+        XCTAssertEqual(current.face.dateText, "周一 11-16")
         XCTAssertTrue(current.face.ongoing)
         XCTAssertEqual(current.face.alertTitle, "进行中")
         XCTAssertEqual(current.face.title, "高等数学")
         XCTAssertEqual(current.face.place, "主楼 A201")
+        XCTAssertEqual(current.face.teacher, "合成教师")
         XCTAssertEqual(current.face.secondaryText, "下一节 10:10 大学英语 教一 B305")
         XCTAssertFalse(current.face.secondaryExam)
         XCTAssertEqual(current.face.countdownLabel, "还剩")
@@ -47,6 +50,8 @@ final class ScheduleLiveCardTests: XCTestCase {
     }
 
     func testClockPaddingAndRemainingWords() {
+        let date = LocalDate.calendar.date(from: DateComponents(year: 2026, month: 11, day: 26))!
+        XCTAssertEqual(ScheduleLiveClock.dayLabel(from: date), "周四 11-26")
         XCTAssertEqual(ScheduleLiveClock.pad("9:35"), "09:35")
         XCTAssertEqual(ScheduleLiveClock.pad("明天 8:00"), "明天 08:00")
         XCTAssertEqual(ScheduleLiveClock.pad("8:00–9:35"), "08:00–09:35")
@@ -175,6 +180,15 @@ final class ScheduleLiveCardTests: XCTestCase {
         XCTAssertEqual(face.secondaryText, "14:00 考试 · 主 M101")
         XCTAssertTrue(face.isPrivate)
         XCTAssertEqual(face.alertBody, "14:00 研讨室 305")
+    }
+
+    func testLegacyFaceWithoutReferenceFieldsDecodes() throws {
+        let data = Data(#"{"timeText":"至 09:35","ongoing":true,"title":"高等数学","extraCount":0,"secondaryExam":false,"isPrivate":false}"#.utf8)
+        let face = try JSONDecoder().decode(ScheduleLiveFace.self, from: data)
+        XCTAssertNil(face.scheduleText)
+        XCTAssertNil(face.dateText)
+        XCTAssertNil(face.teacher)
+        XCTAssertEqual(face.timeText, "至 09:35")
     }
 
     private func liveSnapshot(horizon: Int, rows: [[String: Any]]) throws -> WidgetSnapshot {

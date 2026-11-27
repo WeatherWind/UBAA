@@ -71,109 +71,107 @@ private struct ScheduleLiveFaceView: View {
 
     var body: some View {
         let palette = SchedulePalette.resolve(theme: .ocean, scheme: scheme, accented: false)
-        VStack(spacing: 8) {
-            header(palette)
-            Text(face.title)
-                .font(.system(size: prominent ? 22 : 18, weight: .semibold))
-                .foregroundStyle(palette.ink)
-                .multilineTextAlignment(.center)
-                .lineLimit(prominent ? 2 : 1)
-                .privacySensitive(face.isPrivate)
-                .frame(maxWidth: .infinity)
-            if let place = face.place {
-                Text(place)
+        VStack(alignment: .leading, spacing: prominent ? 14 : 8) {
+            HStack(spacing: 8) {
+                Text([face.dateText, face.tag].compactMap { $0 }.joined(separator: " · "))
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(palette.secondary)
                     .lineLimit(1)
-                    .frame(maxWidth: .infinity)
+                    .minimumScaleFactor(0.75)
+                Spacer(minLength: 0)
+                status(face.ongoing ? "进行中" : "接下来", palette: palette)
             }
-            if face.ongoing {
-                HStack(alignment: .top, spacing: 0) {
-                    if face.classStart != nil {
-                        mark("本节课开始于", clock: face.classClock, end: face.classStart, prefix: "还有", palette: palette)
-                        Rectangle().fill(palette.hairline).frame(width: 1).padding(.vertical, 2)
-                    }
-                    mark("本节课结束于", clock: face.sectionClock, end: face.sectionEnd, prefix: "还剩", palette: palette)
-                    Rectangle().fill(palette.hairline).frame(width: 1).padding(.vertical, 2)
-                    mark("本堂课结束于", clock: face.periodClock, end: face.periodEnd, prefix: "还剩", palette: palette)
-                }
-            } else {
-                mark(
-                    "本节课开始于",
-                    clock: face.classClock ?? face.timeText,
-                    end: face.classStart ?? face.countdownEnd,
-                    prefix: "还有",
-                    palette: palette
-                )
-            }
-            if let secondary = face.secondaryText, !secondary.isEmpty {
-                Text(secondary)
+            Spacer(minLength: 0)
+            course(palette)
+            Spacer(minLength: 0)
+            if let footer = footerText {
+                Text(footer)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(face.secondaryExam ? palette.accent : palette.tertiary)
-                    .multilineTextAlignment(.center)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    @ViewBuilder
-    private func header(_ palette: SchedulePalette) -> some View {
-        if face.ongoing || face.tag != nil || face.extraCount > 0 {
-        ZStack {
-            HStack(spacing: 4) {
-                if face.ongoing {
-                    Text("进行中")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(palette.onAccent)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(palette.accent))
-                }
-                if let tag = face.tag {
-                    Text(tag)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(palette.accent)
-                        .lineLimit(1)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(palette.accent.opacity(0.14)))
-                }
-            }
-            .frame(maxWidth: .infinity)
-            if face.extraCount > 0 {
-                Text("+\(face.extraCount)")
-                    .font(.system(size: 11))
-                    .foregroundStyle(palette.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+    private var countdown: (prefix: String, end: Date)? {
+        if let classStart = face.classStart {
+            return ("还有", classStart)
         }
+        if face.ongoing, let sectionEnd = face.sectionEnd {
+            return ("还剩", sectionEnd)
         }
+        if let countdownEnd = face.countdownEnd {
+            return (face.countdownLabel ?? (face.ongoing ? "还剩" : "还有"), countdownEnd)
+        }
+        return nil
     }
 
-    private func mark(
-        _ name: String, clock: String?, end: Date?, prefix: String, palette: SchedulePalette
-    ) -> some View {
-        VStack(spacing: 2) {
-            Text(name)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(palette.secondary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+    private var footerText: String? {
+        if let secondary = face.secondaryText, !secondary.isEmpty {
+            return secondary
+        }
+        return face.extraCount > 0 ? "还有 \(face.extraCount) 项" : nil
+    }
+
+    private func status(_ text: String, palette: SchedulePalette) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(face.ongoing ? palette.onAccent : palette.accent)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(face.ongoing ? palette.accent : palette.accent.opacity(0.14)))
+    }
+
+    private func course(_ palette: SchedulePalette) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(face.title)
+                .font(.system(size: prominent ? 24 : 20, weight: .semibold))
+                .foregroundStyle(palette.ink)
+                .lineLimit(prominent ? 2 : 1)
                 .minimumScaleFactor(0.8)
-            Text(clock ?? "—")
-                .font(.system(size: prominent ? 22 : 16, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(palette.accent)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            if let end {
-                RemainingText(prefix: prefix, end: end, color: palette.accent, size: 11)
+                .privacySensitive(face.isPrivate)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(face.scheduleText ?? face.timeText)
+                    .font(.system(size: prominent ? 17 : 15, weight: .medium))
+                    .foregroundStyle(palette.accent)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .layoutPriority(1)
+                if let countdown {
+                    RemainingText(prefix: countdown.prefix, end: countdown.end,
+                                  color: palette.secondary, size: 11)
+                }
+            }
+            HStack(spacing: 8) {
+                if let place = face.place, !place.isEmpty {
+                    Text(place)
+                        .font(.system(size: prominent ? 16 : 14, weight: .semibold))
+                        .foregroundStyle(palette.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                if let teacher = face.teacher, !teacher.isEmpty {
+                    Text(teacher)
+                        .font(.system(size: prominent ? 16 : 14))
+                        .foregroundStyle(palette.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: prominent ? 320 : 300, alignment: .leading)
+        .padding(.leading, 10)
+        .overlay(alignment: .leading) {
+            Capsule()
+                .fill(palette.accent)
+                .frame(width: 4)
+        }
     }
 }
 
@@ -193,7 +191,8 @@ private struct RemainingText: View {
                 .monospacedDigit()
                 .foregroundStyle(color)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.65)
+                .layoutPriority(1)
         }
     }
 }
